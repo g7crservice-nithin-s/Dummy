@@ -1,0 +1,131 @@
+# Default values for raychem-rpg-auth-chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: $(AUTH_IMG_URI)
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: $(Build.BuildId)
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  name: access-control-svc
+  type: ClusterIP
+  port: $(APP_PORT)
+  targetPort: $(APP_PORT)
+  protocol: TCP
+
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/use-regex: 'true'
+    nginx.ingress.kubernetes.io/send_timeout: "1800"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "1800"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+  hosts:
+    - host: $(INGRESS_HOST)
+      paths:
+        - path: /api/access-control-svc/?(.*)
+          pathType: Prefix
+          serviceName: access-control-svc
+          servicePort: $(APP_PORT)
+        - path: /api/ticket-svc/?(.*)
+          pathType: Prefix
+          serviceName: ticket-svc
+          servicePort: $(APP_PORT)
+          
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+    cpu: 500m       # 0.5 core
+    memory: 2048Mi  # 2GB RAM
+  requests:
+    cpu: 500m
+    memory: 2048Mi
+
+livenessProbe:
+  httpGet:
+    path: /api/access-control-svc/healthz
+    port: $(APP_PORT)
+  initialDelaySeconds: 15
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /api/access-control-svc/healthz
+    port: $(APP_PORT)
+  initialDelaySeconds: 15
+  periodSeconds: 10
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector:
+  app: rpgapp
+
+tolerations: []
+
+affinity: {}
+
+app:
+  name: access-control-svc
+  namespace: rpgapp
